@@ -385,9 +385,4 @@ public class PaperDBPerfTest extends PerfTest {
                 .blockingSubscribe();
         stopBenchmark();
     }
-
-    @Override
-    public void tearDown() {
-        store.destroy();
-    }
 }

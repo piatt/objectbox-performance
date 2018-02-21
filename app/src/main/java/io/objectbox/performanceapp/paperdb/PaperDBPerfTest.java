@@ -1,16 +1,20 @@
 package io.objectbox.performanceapp.paperdb;
 
 import android.content.Context;
+import android.os.Environment;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import io.objectbox.Property;
 import io.objectbox.performanceapp.PerfTest;
@@ -27,8 +31,12 @@ import io.reactivex.internal.operators.parallel.ParallelFlatMap;
 import io.reactivex.parallel.ParallelFlowable;
 import io.reactivex.schedulers.Schedulers;
 
+import static java.util.stream.Collectors.toList;
+
 public class PaperDBPerfTest extends PerfTest {
     private final String ENTITIES_KEY = "entities";
+    private final String ROOT_STORAGE_PATH = "/paperdb/";
+    private final String BOOK_NAME = "entities";
 
     private Book store;
     private boolean versionLoggedOnce;
@@ -41,8 +49,8 @@ public class PaperDBPerfTest extends PerfTest {
     public void setUp(Context context, PerfTestRunner testRunner) {
         super.setUp(context, testRunner);
         Paper.init(context);
-        Paper.book().destroy();
-        store = Paper.book();
+        String path = Environment.getExternalStorageDirectory().getAbsolutePath().concat(ROOT_STORAGE_PATH);
+        store = Paper.bookOn(path, BOOK_NAME);
 
         if (!versionLoggedOnce) {
             log("Paper DB 2.6 (Kryo 4.0.1)");
@@ -72,7 +80,7 @@ public class PaperDBPerfTest extends PerfTest {
                 runQueryByInteger();
                 break;
             case TestType.QUERY_INTEGER_INDEXED:
-                runQueryByInteger();
+                runQueryByIntegerBatch();
                 break;
             case TestType.QUERY_ID:
                 runQueryById(false);
@@ -214,18 +222,27 @@ public class PaperDBPerfTest extends PerfTest {
             stringsToLookup.add(text);
         }
 
+
+        List<SimpleEntity> queriedEntities = new ArrayList<>();
         startBenchmark("query");
-        final AtomicInteger count = new AtomicInteger(0);
+        long entitiesFound = 0;
 
         Flowable.fromIterable(store.getAllKeys())
                 .flatMap(key -> Flowable.just(key)
                         .subscribeOn(Schedulers.io())
                         .map(k -> (SimpleEntity) store.read(k)))
-                        .filter(e -> stringsToLookup.contains(e.getSimpleString()))
-                .blockingSubscribe(r -> count.incrementAndGet());
+                .blockingSubscribe(queriedEntities::add);
+
+        for (int i = 0; i < numberEntities; i++) {
+            for (SimpleEntity entity : queriedEntities) {
+                if (entity.getSimpleString().equals(stringsToLookup.get(i))) {
+                    entitiesFound++;
+                }
+            }
+        }
         
         stopBenchmark();
-        log("Entities found: " + count.get());
+        log("Entities found: " + entitiesFound);
     }
 
     private void runQueryByStringBatch() {
@@ -234,23 +251,22 @@ public class PaperDBPerfTest extends PerfTest {
             return;
         }
 
-        List<SimpleEntity> entities = prepareAndPutEntities(false);
-        final String[] stringsToLookup = new String[numberEntities];
+        List<SimpleEntity> entities = prepareAndPutEntitiesBatch();
+        final List<String> stringsToLookup = new ArrayList<>();
         for (int i = 0; i < numberEntities; i++) {
             String text = "";
             while (text.length() < 2) {
                 text = entities.get(random.nextInt(numberEntities)).getSimpleString();
             }
-            stringsToLookup[i] = text;
+            stringsToLookup.add(text);
         }
 
         startBenchmark("query");
         long entitiesFound = 0;
-        List<SimpleEntity> entityList = store.read(ENTITIES_KEY, new ArrayList<SimpleEntity>());
+        List<SimpleEntity> queriedEntities = store.read(ENTITIES_KEY, new ArrayList<SimpleEntity>());
         for (int i = 0; i < numberEntities; i++) {
-            for (SimpleEntity entity : entityList) {
-                if (entity.getSimpleString().equals(stringsToLookup[i])) {
-                    accessAll(entity);
+            for (SimpleEntity entity : queriedEntities) {
+                if (entity.getSimpleString().equals(stringsToLookup.get(i))) {
                     entitiesFound++;
                 }
             }
@@ -271,14 +287,19 @@ public class PaperDBPerfTest extends PerfTest {
             valuesToLookup[i] = entities.get(random.nextInt(numberEntities)).getSimpleInt();
         }
 
+        List<SimpleEntity> queriedEntities = new ArrayList<>();
         startBenchmark("query");
 
         long entitiesFound = 0;
-        List<SimpleEntity> entityList = store.read(ENTITIES_KEY, new ArrayList<SimpleEntity>());
+        Flowable.fromIterable(store.getAllKeys())
+                .flatMap(key -> Flowable.just(key)
+                        .subscribeOn(Schedulers.io())
+                        .map(k -> (SimpleEntity) store.read(k)))
+                .blockingSubscribe(queriedEntities::add);
+
         for (int i = 0; i < numberEntities; i++) {
-            for (SimpleEntity entity : entityList) {
+            for (SimpleEntity entity : queriedEntities) {
                 if (entity.getSimpleInt() == valuesToLookup[i]) {
-                    accessAll(entity);
                     entitiesFound++;
                 }
             }
@@ -286,7 +307,35 @@ public class PaperDBPerfTest extends PerfTest {
 
         stopBenchmark();
         log("Entities found: " + entitiesFound);
-//        assertGreaterOrEqualToNumberOfEntities(entitiesFound);
+        assertGreaterOrEqualToNumberOfEntities(entitiesFound);
+    }
+
+    private void runQueryByIntegerBatch() {
+        if (numberEntities > 10000) {
+            log("Reduce number of entities to 10000 to avoid extremely long test runs");
+            return;
+        }
+
+        List<SimpleEntity> entities = prepareAndPutEntities(false);
+        final int[] valuesToLookup = new int[numberEntities];
+        for (int i = 0; i < numberEntities; i++) {
+            valuesToLookup[i] = entities.get(random.nextInt(numberEntities)).getSimpleInt();
+        }
+
+        startBenchmark("query");
+
+        long entitiesFound = 0;
+        List<SimpleEntity> entityList = store.read(ENTITIES_KEY, new ArrayList<SimpleEntity>());
+        for (int i = 0; i < numberEntities; i++) {
+            for (SimpleEntity entity : entityList) {
+                if (entity.getSimpleInt() == valuesToLookup[i]) {
+                    entitiesFound++;
+                }
+            }
+        }
+
+        stopBenchmark();
+        log("Entities found: " + entitiesFound);
     }
 
     private List<SimpleEntity> prepareAndPutEntities(boolean scalarsOnly) {
@@ -321,36 +370,20 @@ public class PaperDBPerfTest extends PerfTest {
     }
 
     private void runQueryById(boolean randomIds) {
-        List<SimpleEntity> entities = prepareAndPutEntities(false);
-
-        final long[] idsToLookup = new long[numberEntities];
-        for (int i = 0; i < numberEntities; i++) {
-            idsToLookup[i] = randomIds ? 1 + random.nextInt(numberEntities) : 1 + i;
+        prepareAndPutEntities(false);
+        List<String> ids = Flowable.rangeLong(0, numberEntities)
+                .map(String::valueOf).toList().blockingGet();
+        if (randomIds) {
+            Collections.shuffle(ids);
         }
 
         startBenchmark("query");
-        getById(idsToLookup);
+        Flowable.fromIterable(ids)
+                .flatMap(id -> Flowable.just(id)
+                        .subscribeOn(Schedulers.io())
+                        .map(key -> (SimpleEntity) store.read(key)))
+                .blockingSubscribe();
         stopBenchmark();
-    }
-
-    private void getById(long[] idsToLookup) {
-        for (int i = 0; i < numberEntities; i++) {
-//            SimpleEntity entity = box.get(idsToLookup[i]);
-//            accessAll(entity);
-        }
-    }
-
-    private void accessAll(SimpleEntity entity) {
-        entity.getId();
-        entity.getSimpleBoolean();
-        entity.getSimpleByte();
-        entity.getSimpleShort();
-        entity.getSimpleInt();
-        entity.getSimpleLong();
-        entity.getSimpleFloat();
-        entity.getSimpleDouble();
-        entity.getSimpleString();
-        entity.getSimpleByteArray();
     }
 
     @Override

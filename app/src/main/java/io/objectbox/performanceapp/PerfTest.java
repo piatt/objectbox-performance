@@ -89,4 +89,9 @@ public abstract class PerfTest {
         }
     }
 
+    protected void assertEntityCountZero(long size) {
+        if (size != 0) {
+            throw new IllegalStateException("Expected 0 but actual number is " + size);
+        }
+    }
 }

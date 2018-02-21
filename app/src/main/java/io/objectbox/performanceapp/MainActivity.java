@@ -35,6 +35,7 @@ import java.util.List;
 import io.objectbox.performanceapp.PerfTestRunner.Callback;
 import io.objectbox.performanceapp.greendao.GreendaoPerfTest;
 import io.objectbox.performanceapp.objectbox.ObjectBoxPerfTest;
+import io.objectbox.performanceapp.paperdb.PaperDBPerfTest;
 import io.objectbox.performanceapp.realm.RealmPerfTest;
 import io.objectbox.performanceapp.room.RoomPerfTest;
 
@@ -64,6 +65,8 @@ public class MainActivity extends Activity implements Callback {
                 boolean realm = ((CheckBox) findViewById(R.id.checkBoxRealm)).isChecked();
                 boolean greenDao = ((CheckBox) findViewById(R.id.checkBoxGreenDao)).isChecked();
                 boolean room = ((CheckBox) findViewById(R.id.checkBoxRoom)).isChecked();
+                boolean paperDB = ((CheckBox) findViewById(R.id.checkBoxPaperDB)).isChecked();
+
                 TestType type = (TestType) ((Spinner) findViewById(R.id.spinnerTestType)).getSelectedItem();
 
                 int runs;
@@ -76,7 +79,7 @@ public class MainActivity extends Activity implements Callback {
                     textViewResults.append(e.getMessage() + "\n");
                     return;
                 }
-                runTests(type, runs, numberEntities, objectBox, realm, greenDao, room);
+                runTests(type, runs, numberEntities, objectBox, realm, greenDao, room, paperDB);
             }
         });
         ArrayAdapter adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, TestType.ALL);
@@ -94,7 +97,7 @@ public class MainActivity extends Activity implements Callback {
         super.onDestroy();
     }
 
-    private void runTests(TestType type, int runs, int numberEntities, boolean objectBox, boolean realm, boolean greenDao, boolean room) {
+    private void runTests(TestType type, int runs, int numberEntities, boolean objectBox, boolean realm, boolean greenDao, boolean room, boolean paperDB) {
         textViewResults.setText("");
         List<PerfTest> tests = new ArrayList<>();
         if (objectBox) {
@@ -108,6 +111,9 @@ public class MainActivity extends Activity implements Callback {
         }
         if (room) {
             tests.add(new RoomPerfTest());
+        }
+        if (paperDB) {
+            tests.add(new PaperDBPerfTest());
         }
         testRunner = new PerfTestRunner(this, this, textViewResults, runs, numberEntities);
         testRunner.run(type, tests);

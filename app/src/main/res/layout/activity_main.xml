@@ -54,6 +54,18 @@
         android:layout_toRightOf="@+id/checkBoxGreenDao"
         android:text="Room" />
 
+    <CheckBox
+        android:id="@+id/checkBoxPaperDB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/checkBoxObjectBox"
+        android:layout_marginLeft="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_toEndOf="@+id/checkBoxRoom"
+        android:layout_toRightOf="@+id/checkBoxRoom"
+        android:checked="true"
+        android:text="Paper DB" />
+
     <TextView
         android:id="@+id/textViewNote"
         android:layout_width="wrap_content"
@@ -108,7 +120,7 @@
         android:layout_toRightOf="@+id/editTextRuns"
         android:ems="10"
         android:inputType="number"
-        android:text="100000" />
+        android:text="1000" />
 
     <Button
         android:id="@+id/buttonRunTest"

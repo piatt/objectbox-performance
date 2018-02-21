@@ -23,6 +23,7 @@ import java.util.List;
 
 import io.objectbox.Box;
 import io.objectbox.BoxStore;
+import io.objectbox.Property;
 import io.objectbox.performanceapp.PerfTest;
 import io.objectbox.performanceapp.PerfTestRunner;
 import io.objectbox.performanceapp.TestType;
@@ -246,10 +247,10 @@ public class ObjectBoxPerfTest extends PerfTest {
 
         startBenchmark("query");
 
-        final int propertyId = SimpleEntity_.simpleString.getId();
+        final Property property = SimpleEntity_.simpleString;
         long entitiesFound = 0;
         for (int i = 0; i < numberEntities; i++) {
-            List<SimpleEntity> result = box.find(propertyId, stringsToLookup[i]);
+            List<SimpleEntity> result = box.find(property, stringsToLookup[i]);
             accessAll(result);
             entitiesFound += result.size();
         }
@@ -269,10 +270,10 @@ public class ObjectBoxPerfTest extends PerfTest {
         }
 
         startBenchmark("query");
-        final int propertyId = SimpleEntity_.simpleInt.getId();
+        final Property property = SimpleEntity_.simpleInt;
         long entitiesFound = 0;
         for (int i = 0; i < numberEntities; i++) {
-            List<SimpleEntity> result = box.find(propertyId, valuesToLookup[i]);
+            List<SimpleEntity> result = box.find(property, valuesToLookup[i]);
             accessAll(result);
             entitiesFound += result.size();
         }
@@ -308,10 +309,10 @@ public class ObjectBoxPerfTest extends PerfTest {
         }
 
         startBenchmark("query");
-        final int propertyId = SimpleEntityIndexed_.simpleString.getId();
+        final Property property = SimpleEntityIndexed_.simpleString;
         long entitiesFound = 0;
         for (int i = 0; i < numberEntities; i++) {
-            List<SimpleEntityIndexed> result = boxIndexed.find(propertyId, stringsToLookup[i]);
+            List<SimpleEntityIndexed> result = boxIndexed.find(property, stringsToLookup[i]);
             accessAllIndexed(result);
             entitiesFound += result.size();
         }
@@ -328,10 +329,10 @@ public class ObjectBoxPerfTest extends PerfTest {
         }
 
         startBenchmark("query");
-        final int propertyId = SimpleEntityIndexed_.simpleInt.getId();
+        final Property property = SimpleEntityIndexed_.simpleInt;
         long entitiesFound = 0;
         for (int i = 0; i < numberEntities; i++) {
-            List<SimpleEntityIndexed> result = boxIndexed.find(propertyId, valuesToLookup[i]);
+            List<SimpleEntityIndexed> result = boxIndexed.find(property, valuesToLookup[i]);
             accessAllIndexed(result);
             entitiesFound += result.size();
         }

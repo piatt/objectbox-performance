@@ -42,6 +42,10 @@ android {
             jniDebuggable false
         }
     }
+    compileOptions {
+        targetCompatibility 1.8
+        sourceCompatibility 1.8
+    }
 }
 
 dependencies {
@@ -50,4 +54,6 @@ dependencies {
     compile "io.objectbox:objectbox-android:$objectboxVersion"
     compile 'org.greenrobot:greendao:3.2.2'
     compile 'org.greenrobot:essentials:3.0.0-RC1'
+    compile "io.paperdb:paperdb:2.6"
+    compile "io.reactivex.rxjava2:rxjava:2.1.9"
 }
